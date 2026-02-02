@@ -19,8 +19,8 @@ No prior knowledge of FastAPI, Redis, or concurrency is required to understand t
 
 Most software systems generate **logs** — text records that describe what the system is doing.  
 Examples include:
-- 2026-01-30 12:01:05 INFO User logged in
-- 2026-01-30 12:01:06 ERROR Database timeout
+- ```2026-01-30 12:01:05 INFO User logged in```
+- ```2026-01-30 12:01:06 ERROR Database timeout```
 
 
 A common backend task is to:
@@ -51,44 +51,49 @@ Each layer has a single responsibility, making the system easier to understand a
 
 ### Plain text logs
 Expected format:
-- YYYY-MM-DD HH:MM:SS LEVEL message
+- ```YYYY-MM-DD HH:MM:SS LEVEL message```
 
 ### JSON Logs (JSON lines)
-One JSON object per line.
+One JSON object per line.  
 Example:
-{"ts":"2026-01-30T12:01:05","level":"INFO","msg":"User logged in"}
+- ```{"ts":"2026-01-30T12:01:05","level":"INFO","msg":"User logged in"}```
 
 The client specifies which format it is sending when making a request.
 
 ## API Endpoints
 Once the application is running, interactive documentation is available at:
-- http://127.0.0.1:8000/docs
+- ```http://127.0.0.1:8000/docs```
 
-### GET /health
+### GET ```/health```
 Performs a simple health check, flagging the status of the service.
-- Example representation: {"status": "ok"}
+- Example representation: ```{"status": "ok"}```
 
-### POST /parse
-Parses a single log line and returns the detected log level.
+### POST ```/parse```
+Parses a single log line and returns the detected log level.  
 Request example:
+```
 {
     "mode": "plain",
     "line": "2026-01-30 12:01:05 INFO User logged in"
 }
+```
 
 Response to example:
+```
 {
     "level": "INFO"
 }
+```
 
-### POST /batch
-Processes multiple log lines asynchronously.
+### POST ```/batch```
+Processes multiple log lines asynchronously.  
 This endpoint uses:
-- asyncio
+- ```asyncio```
 - Bounded concurrency
 - Background threads to avoid blocking the event loop
 
 Request Example:
+```
 {
   "mode": "plain",
   "lines": [
@@ -97,8 +102,10 @@ Request Example:
     "2026-01-30 12:01:07 WARNING Disk almost full"
   ]
 }
+```
 
 Response to example:
+```
 {
   "counts": {
     "INFO": 1,
@@ -106,18 +113,19 @@ Response to example:
     "WARNING": 1
   }
 }
+```
 
-### POST /batch_threads
-Processes multiple log lines using explicit multithreading.
+### POST ```/batch_threads```
+Processes multiple log lines using explicit multithreading.  
 This endpoint demonstrates:
-- ThreadPoolExecutor
+- ```ThreadPoolExecutor```
 - Parallel execution for I/O-bound workloads
 The request and response format are identical to /batch.
 
-### POST /cpu_processes
-Demonstrates multiprocessing for CPU-bound workloads.
+### POST ```/cpu_processes```
+Demonstrates multiprocessing for CPU-bound workloads.  
 This endpoint performs intentionally expensive hashing work and uses:
-- ProcessPoolExecutor
+- ```ProcessPoolExecutor```
 - Multiple CPU cores
 
 It exists to demonstrate when processes are preferable to threads.
@@ -125,32 +133,32 @@ It exists to demonstrate when processes are preferable to threads.
 ## Concurrency models used in this project:
 This project intentionally includes three different concurrency approaches, because each is appropriate in different situations.
 
-### Async /batch
+### Async ```/batch```
 Best suited for:
 - I/O-bound work (network calls, Redis access)
 - Handling many concurrent requests efficiently
 
 Uses:
-- async def
-- asyncio.Semaphore
-- asyncio.to_thread
+- ```async def```
+- ```asyncio.Semaphore```
+- ```asyncio.to_thread```
 
-### Multithreading /batch_threads
+### Multithreading ```/batch_threads```
 Best suited for:
 - I/O-bound work
 - Existing synchronous code
 - Simpler mental model than async
 
 Uses:
-- ThreadPoolExecutor
+- ```ThreadPoolExecutor```
 
-### Multiprocessing /cpu_processes
+### Multiprocessing ```/cpu_processes```
 Best suited for:
 - CPU-bound work
 - Heavy computation
 
 Uses:
-- ProcessPoolExecutor
+- ```ProcessPoolExecutor```
 - Multiple CPU cores
 - Avoids Python's Global Interpreter Lock (GIL)
 
@@ -163,60 +171,61 @@ When a log line is processed:
 - The parsed result is stored in Redis
 - A time-to-live (TTL) is applied
 
-This avoids re-processing identical log lines
+This avoids re-processing identical log lines  
 Redis commands used:
-- GET
-- SETEX
+- ```GET```
+- ```SETEX```
 
 ### Rate Limiting
-Each endpoint is protected by a distributed rate limiter.
+Each endpoint is protected by a distributed rate limiter.  
 Implementation:
-- INCR counts requests
-- EXPIRE defines a time window
+- ```INCR``` counts requests
+- ```EXPIRE``` defines a time window
 
-This prevents the service from being overloaded
+This prevents the service from being overloaded.  
 If Redis is unavailable:
 - The application falls back to a no-op cache
 - The service continues running (Graceful Degradation)
 
 ## Project Structure:
-.
+```
+log_api_system
 ├── app.py          # FastAPI app and endpoints
 ├── core.py         # Parsing and analysis logic
 ├── cache.py        # Redis cache and rate limiting
 ├── Dockerfile      # Container configuration
 ├── requirements.txt
 └── README.md
-
+```
 Where:
-- app.py defines the API and concurrency behaviour
-- core.py contains all log parsing and analysis logic
-- cache.py encapsulates Redis access and rate limiting
+- ```app.py``` defines the API and concurrency behaviour
+- ```core.py``` contains all log parsing and analysis logic
+- ```cache.py``` encapsulates Redis access and rate limiting
 
 ## Running Locally (Without Docker)
 Install dependencies:
-- pip install -r requirements.txt
+- ```pip install -r requirements.txt```
 
 Run the server:
-- python -m uvicorn app:app --reload
+- ```python -m uvicorn app:app --reload```
 
 Open:
-- http://127.0.0.1:8000/docs
+- ```http://127.0.0.1:8000/docs```
 
 ## Running Redis locally (Optional)
-The application works without Redis, but caching and rate limiting are disabled.
+The application works without Redis, but caching and rate limiting are disabled.  
 To run Redis with Docker:
-- docker run -p 6379:6379 redis:7-alpine
+- ```docker run -p 6379:6379 redis:7-alpine```
 
 ## Running with Docker:
 Build the image:
-- docker build -t log-api .
+- ```docker build -t log-api .```
 
 Run the container:
-- docker run --rm -p 8000:8000 log-api
+- ```docker run --rm -p 8000:8000 log-api```
 
 Then visit:
-- http://127.0.0.1:8000/docs
+- ```http://127.0.0.1:8000/docs```
 
 ## Purpose of this Project:
 This project was built to recap various important Python concepts, such as:
